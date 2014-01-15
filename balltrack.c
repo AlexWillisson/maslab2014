@@ -5,7 +5,7 @@
 #include <opencv2/highgui/highgui_c.h>
 #include <opencv2/imgproc/imgproc_c.h>
 
-#define DEBUG_VALUES 0
+#define DEBUG_VALUES 1
 
 #define DASH_WINDOW "balltrack"
 #define DASH_HEIGHT 2
@@ -89,6 +89,12 @@ find_colors (IplImage *img, IplImage *res)
 				row_bgr_dst[x] = 255;
 				row_bgr_dst[x+1] = 0;
 				row_bgr_dst[x+2] = 0;
+			} else if (((160 <= h && h <= 180)
+				    || (0 <= h && h <= 10))
+				   && (s > 70)) {
+				row_bgr_dst[x] = 255;
+				row_bgr_dst[x+1] = 0;
+				row_bgr_dst[x+2] = 0;
 			} else {
 				row_bgr_dst[x] = 0;
 				row_bgr_dst[x+1] = 0;
@@ -109,7 +115,7 @@ clean_noise (IplImage *img, IplImage *res)
 	mat_gray_shrunk = cvCreateMat (FRAME_HEIGHT, FRAME_WIDTH, CV_8UC1);
 
 	cvErode (mat_gray, mat_gray_shrunk, NULL, 5);
-	/* cvDilate (mat_gray_shrunk, mat_gray, NULL, 3); */
+	cvDilate (mat_gray_shrunk, mat_gray, NULL, 5);
 
 	cvCvtColor (mat_gray_shrunk, res, CV_GRAY2BGR);
 }
@@ -211,7 +217,7 @@ track_balls (IplImage *img, IplImage *res)
 			head_blob = bp1;
 		}
 
-		if (0) {
+		if (1) {
 			ballp = track_dot (moments.m10 / moments.m00,
 					moments.m01 / moments.m00);
 
