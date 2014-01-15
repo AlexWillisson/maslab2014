@@ -7,7 +7,7 @@
 
 #define DEBUG_VALUES 0
 
-#define DASH_WINDOW "cvcu"
+#define DASH_WINDOW "balltrack"
 #define DASH_HEIGHT 2
 #define DASH_WIDTH 2
 
@@ -238,6 +238,7 @@ int
 main (int argc, char **argv)
 {
 	int c, idx, jdx, running;
+	IplImage *rawsized;
 
 	running = 1;
 	head_dot = NULL;
@@ -271,6 +272,12 @@ main (int argc, char **argv)
 	tmp_panel = cvCreateImage (cvSize (FRAME_WIDTH, FRAME_HEIGHT), 8, 3);
 
 	cvSetMouseCallback (DASH_WINDOW, on_mouse, NULL);
+
+	raw = cvLoadImage ("ref_img.jpg", CV_LOAD_IMAGE_COLOR);
+	rawsized = cvCreateImage (cvSize (FRAME_WIDTH, FRAME_HEIGHT), 8, 3);
+	cvResize (raw, rawsized, CV_INTER_LINEAR);
+	cvFlip (rawsized, frame, 1);
+	running = 0;
 
 	while (1) {
 		if (running) {
