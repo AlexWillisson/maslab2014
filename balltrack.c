@@ -5,7 +5,7 @@
 #include <opencv2/highgui/highgui_c.h>
 #include <opencv2/imgproc/imgproc_c.h>
 
-#define DEBUG_VALUES 1
+#define DEBUG_VALUES 0
 
 #define DASH_WINDOW "balltrack"
 #define DASH_HEIGHT 2
@@ -178,9 +178,13 @@ track_balls (IplImage *img, IplImage *res)
 	cvCvtColor (img, mat_gray, CV_BGR2GRAY);
 
 	storage = cvCreateMemStorage (0);
-	cvFindContours (mat_gray, storage, &contours, sizeof (CvContour),
-			CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE, cvPoint (0, 0));
-
+	if (0) {
+		cvFindContours (mat_gray, storage, &contours, sizeof (CvContour),
+				CV_RETR_CCOMP, CV_CHAIN_APPROX_NONE, cvPoint (0, 0));
+	} else {
+		cvFindContours (mat_gray, storage, &contours, sizeof (CvContour),
+				CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cvPoint (0, 0));
+	}
 	cvCopy (img, res, 0);
 
 	for (cp = contours; cp; cp = cp->h_next) {
@@ -244,7 +248,7 @@ int
 main (int argc, char **argv)
 {
 	int c, idx, jdx, running;
-	IplImage *rawsized;
+	/* IplImage *rawsized; */
 
 	running = 1;
 	head_dot = NULL;
@@ -279,11 +283,11 @@ main (int argc, char **argv)
 
 	cvSetMouseCallback (DASH_WINDOW, on_mouse, NULL);
 
-	raw = cvLoadImage ("ref_img.jpg", CV_LOAD_IMAGE_COLOR);
-	rawsized = cvCreateImage (cvSize (FRAME_WIDTH, FRAME_HEIGHT), 8, 3);
-	cvResize (raw, rawsized, CV_INTER_LINEAR);
-	cvFlip (rawsized, frame, 1);
-	running = 0;
+	/* raw = cvLoadImage ("ref_img.jpg", CV_LOAD_IMAGE_COLOR); */
+	/* rawsized = cvCreateImage (cvSize (FRAME_WIDTH, FRAME_HEIGHT), 8, 3); */
+	/* cvResize (raw, rawsized, CV_INTER_LINEAR); */
+	/* cvFlip (rawsized, frame, 1); */
+	/* running = 0; */
 
 	while (1) {
 		if (running) {
