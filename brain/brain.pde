@@ -4,7 +4,7 @@
 #define LEFT_MOTOR 3
 #define RIGHT_DIR 13
 #define LEFT_DIR 4
-#define SPEED 20000
+#define SPEED 10000
 
 #define ROT_THRESH 1
 
