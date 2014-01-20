@@ -8,7 +8,75 @@
 
 #define ROT_THRESH 1
 
+int us_vcc, us_trig, us_echo, us_gnd;
 int driving;
+int us_val, echo_low, recv_echo, us_start;
+
+void
+ultrasonic_sample (void)
+{
+	SerialUSB.println ("foo");
+
+	if ( ! recv_echo) {
+		if (micros () - us_start < 60000) {
+			return;
+		}
+	}
+
+	SerialUSB.println ("bar");
+
+	if ( ! echo_low) {
+		return;
+	}
+
+	SerialUSB.println ("baz");
+
+	digitalWrite (us_trig, HIGH);
+	delayMicroseconds (10);
+	digitalWrite (us_trig, LOW);
+	us_start = micros ();
+
+	echo_low = 1;
+	recv_echo = 0;
+}
+
+void
+ultrasonic_isr (void)
+{
+	SerialUSB.println ("quux");
+
+	if (echo_low) {
+		us_start = micros ();
+		echo_low = 0;
+		recv_echo = 1;
+	} else {
+		us_val = micros () - us_start;
+		echo_low = 1;
+	}
+}
+
+void
+ultrasonic_setup (int vcc, int trig, int echo, int gnd)
+{
+	us_vcc = vcc;
+	us_trig = trig;
+	us_echo = echo;
+	us_gnd = gnd;
+
+	pinMode (us_gnd, OUTPUT);
+	pinMode (us_vcc, OUTPUT);
+
+	pinMode (us_trig, OUTPUT);
+	pinMode (us_echo, INPUT);
+
+	digitalWrite (us_vcc, HIGH);
+	digitalWrite (us_gnd, LOW);
+	digitalWrite (us_trig, LOW);
+
+	attachInterrupt (us_echo, ultrasonic_isr, CHANGE);
+
+	echo_low = 0;
+}
 
 void
 setup (void)
@@ -17,6 +85,8 @@ setup (void)
 	pinMode (LEFT_MOTOR, PWM);
 	pinMode (RIGHT_DIR, OUTPUT);
 	pinMode (LEFT_DIR, OUTPUT);
+	
+	ultrasonic_setup (2, 3, 4, 5);
 
 	driving = 0;
 	digitalWrite (RIGHT_DIR, LOW);
@@ -25,10 +95,18 @@ setup (void)
         pwmWrite (LEFT_MOTOR, 0);
 }
 
+double
+us_to_cm (long usec)
+{
+	return ((usec / 29) / 2);
+}
+
 void
 loop (void)
 {
         int idx, avail, c;
+	long duration;
+	double cm;
 
         avail = SerialUSB.available ();
         
@@ -77,4 +155,12 @@ loop (void)
 			break;
 		}
         }
+
+	ultrasonic_sample ();
+
+	cm = us_to_cm (us_val);
+
+	SerialUSB.println (cm);
+
+	delay (100);
 }
