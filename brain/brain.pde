@@ -1,6 +1,6 @@
 // -*- c -*-
 
-#include <stdarg.h>
+#include <stdio.h>
 
 #define RIGHT_MOTOR 14
 #define LEFT_MOTOR 3
@@ -23,116 +23,6 @@ struct encoder left_encoder, right_encoder;
 
 int driving;
 
-int
-sprintf (char *s, char *format, ...)
-{
-	va_list arg;
-	int base, digits, d, c, len;
-	long n;
-	double f;
-	char *fp, *sp, *p, *s1, *s2;
-
-	va_start (arg, format);
-
-	sp = s;
-	fp = format;
-
-	while (*fp) {
-		switch (*fp) {
-		case '%':
-			fp++;
-			switch (*fp) {
-			case 'o':
-				base = 8;
-				n = va_arg (arg, int);
-				goto parsenum;
-			case 'x':
-				base = 16;
-				n = va_arg (arg, int);
-				goto parsenum;
-			case 'l':
-				base = 10;
-				n = va_arg (arg, long);
-				goto parsenum;
-			case 'd':
-				base = 10;
-				n = va_arg (arg, int);
-				goto parsenum;
-
-			parsenum:
-				if (n == 0) {
-					*sp = '0';
-					sp++;
-					break;
-				}
-
-				digits = 0;
-				while (n > 0) {
-					d = n % base;
-					n /= base;
-					*sp = (d < 10)
-						? ('0' + d) : ('a' + d - 10);
-					digits++;
-					sp++;
-				}
-					
-				for (s1 = sp - 1, s2 = sp - digits;
-				     s1 > s2;
-				     s1--, s2++) {
-					c = *s1;
-					*s1 = *s2;
-					*s2 = c;
-				}
-
-				break;
-			case 'f':
-				f = va_arg (arg, double);
-				len = sprintf (sp, "%d.%d",
-					       (int) f,
-					       ((int) (f * 100)) % 100);
-				while (len--)
-					sp++;
-				sp++;
-				break;
-			case 's':
-				s1 = va_arg (arg, char *);
-				p = s1;
-				while (*p) {
-					*sp = *p;
-					sp++;
-					p++;
-				}
-				break;
-			case '%':
-				*sp = *fp;
-				sp++;
-				break;
-			default:
-				*sp = 0;
-				return (-1);
-			}
-			break;
-		case '\n':
-			*sp = '\n';
-			sp++;
-			*sp = '\r';
-			sp++;
-			break;
-		default:
-			*sp = *fp;
-			sp++;
-			break;
-		}
-
-		fp++;
-	}
-
-	*sp = 0;
-
-	va_end (arg);
-
-	return (sp - s - 1);
-}
 
 void
 setup_motor (struct motor *mp, int pwm, int dir)
@@ -195,6 +85,7 @@ void
 loop (void)
 {
         int idx, avail, c;
+	char buf[500];
 
         avail = SerialUSB.available ();
         
@@ -244,11 +135,10 @@ loop (void)
 		}
         }
 
-	char buf[500];
 	if (digitalRead (38) == HIGH) {
-
-		sprintf (buf, "%d\n%f\n%f\n%f\n========\n", 123, 123.12354, 123.52, 1.2);
+		sprintf (buf, "left: %d\t\tright: %d\n\r",
+			 left_encoder.ticks, right_encoder.ticks);
 		SerialUSB.print (buf);
 	}
-	delay (100);
+	delay (10);
 }
