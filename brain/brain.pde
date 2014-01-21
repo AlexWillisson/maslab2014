@@ -27,8 +27,9 @@ int
 sprintf (char *s, char *format, ...)
 {
 	va_list arg;
-	int base, digits, d, c;
+	int base, digits, d, c, len;
 	long n;
+	double f;
 	char *fp, *sp, *p, *s1, *s2;
 
 	va_start (arg, format);
@@ -84,15 +85,15 @@ sprintf (char *s, char *format, ...)
 				}
 
 				break;
-			/* case 'f': */
-			/* 	numstr = String (va_arg (arg, float)); */
-			/* 	p = numstr.toCharArray (); */
-			/* 	while (*p) { */
-			/* 		*sp = *p; */
-			/* 		sp++; */
-			/* 		p++; */
-			/* 	} */
-			/* 	break; */
+			case 'f':
+				f = va_arg (arg, double);
+				len = sprintf (sp, "%d.%d",
+					       (int) f,
+					       ((int) (f * 100)) % 100);
+				while (len--)
+					sp++;
+				sp++;
+				break;
 			case 's':
 				s1 = va_arg (arg, char *);
 				p = s1;
@@ -130,7 +131,7 @@ sprintf (char *s, char *format, ...)
 
 	va_end (arg);
 
-	return (sp - s);
+	return (sp - s - 1);
 }
 
 void
@@ -246,7 +247,7 @@ loop (void)
 	char buf[500];
 	if (digitalRead (38) == HIGH) {
 
-		sprintf (buf, "%o\n%d\n%x\n========\n", 010, 123, 0xbeef);
+		sprintf (buf, "%d\n%f\n%f\n%f\n========\n", 123, 123.12354, 123.52, 1.2);
 		SerialUSB.print (buf);
 	}
 	delay (100);
