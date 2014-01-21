@@ -1,5 +1,7 @@
 // -*- c -*-
 
+#include <stdarg.h>
+
 #define RIGHT_MOTOR 14
 #define LEFT_MOTOR 3
 #define RIGHT_DIR 13
@@ -14,11 +16,122 @@ struct motor left_motor, right_motor;
 
 struct encoder {
 	int vcc, gnd, a, b;
+	long ticks;
 };
 
 struct encoder left_encoder, right_encoder;
 
 int driving;
+
+int
+sprintf (char *s, char *format, ...)
+{
+	va_list arg;
+	int base, digits, d, c;
+	long n;
+	char *fp, *sp, *p, *s1, *s2;
+
+	va_start (arg, format);
+
+	sp = s;
+	fp = format;
+
+	while (*fp) {
+		switch (*fp) {
+		case '%':
+			fp++;
+			switch (*fp) {
+			case 'o':
+				base = 8;
+				n = va_arg (arg, int);
+				goto parsenum;
+			case 'x':
+				base = 16;
+				n = va_arg (arg, int);
+				goto parsenum;
+			case 'l':
+				base = 10;
+				n = va_arg (arg, long);
+				goto parsenum;
+			case 'd':
+				base = 10;
+				n = va_arg (arg, int);
+				goto parsenum;
+
+			parsenum:
+				if (n == 0) {
+					*sp = '0';
+					sp++;
+					break;
+				}
+
+				digits = 0;
+				while (n > 0) {
+					d = n % base;
+					n /= base;
+					*sp = (d < 10)
+						? ('0' + d) : ('a' + d - 10);
+					digits++;
+					sp++;
+				}
+					
+				for (s1 = sp - 1, s2 = sp - digits;
+				     s1 > s2;
+				     s1--, s2++) {
+					c = *s1;
+					*s1 = *s2;
+					*s2 = c;
+				}
+
+				break;
+			/* case 'f': */
+			/* 	numstr = String (va_arg (arg, float)); */
+			/* 	p = numstr.toCharArray (); */
+			/* 	while (*p) { */
+			/* 		*sp = *p; */
+			/* 		sp++; */
+			/* 		p++; */
+			/* 	} */
+			/* 	break; */
+			case 's':
+				s1 = va_arg (arg, char *);
+				p = s1;
+				while (*p) {
+					*sp = *p;
+					sp++;
+					p++;
+				}
+				break;
+			case '%':
+				*sp = *fp;
+				sp++;
+				break;
+			default:
+				*sp = 0;
+				return (-1);
+			}
+			break;
+		case '\n':
+			*sp = '\n';
+			sp++;
+			*sp = '\r';
+			sp++;
+			break;
+		default:
+			*sp = *fp;
+			sp++;
+			break;
+		}
+
+		fp++;
+	}
+
+	*sp = 0;
+
+	va_end (arg);
+
+	return (sp - s);
+}
 
 void
 setup_motor (struct motor *mp, int pwm, int dir)
@@ -49,18 +162,20 @@ setup_encoder (struct encoder *ep, int gnd, int vcc, int a, int b,
 
 	digitalWrite (ep->vcc, HIGH);
 	digitalWrite (ep->gnd, LOW);
-	attachIntterupt (ep->a, handler, CHANGE);
-	attachIntterupt (ep->b, handler, CHANGE);
+	attachInterrupt (ep->a, handler, CHANGE);
+	attachInterrupt (ep->b, handler, CHANGE);
 }
 
 void
 count_left (void)
 {
+	left_encoder.ticks++;
 }
 
 void
 count_right (void)
 {
+	right_encoder.ticks++;
 }
 
 void
@@ -127,4 +242,12 @@ loop (void)
 			break;
 		}
         }
+
+	char buf[500];
+	if (digitalRead (38) == HIGH) {
+
+		sprintf (buf, "%o\n%d\n%x\n========\n", 010, 123, 0xbeef);
+		SerialUSB.print (buf);
+	}
+	delay (100);
 }
