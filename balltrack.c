@@ -258,6 +258,8 @@ main (int argc, char **argv)
 		fprintf (stderr, "can't open camera\n");
 		exit (1);
 	}
+
+	cvSetCaptureProperty (capture, CV_CAP_PROP_XI_AEAG, 0);
 		
 	for (idx = 0; idx < DASH_HEIGHT; idx++) {
 		for (jdx = 0; jdx < DASH_WIDTH; jdx++) {
