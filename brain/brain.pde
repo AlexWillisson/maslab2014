@@ -6,7 +6,7 @@
 #define RIGHT_DIR 1
 #define LEFT_MOTOR 5
 #define LEFT_DIR 7
-#define SPEED 20000
+#define SPEED 10000
 
 struct motor {
 	int pwm, dir;
@@ -22,7 +22,6 @@ struct encoder {
 struct encoder left_encoder, right_encoder;
 
 int driving;
-
 
 void
 setup_motor (struct motor *mp, int pwm, int dir)

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <limits.h>
+#include <fcntl.h>
 #include <opencv2/core/core_c.h>
 #include <opencv2/highgui/highgui_c.h>
 #include <opencv2/imgproc/imgproc_c.h>
@@ -24,7 +25,8 @@ CvCapture *capture;
 IplImage *frame, *raw, *screen, *hsv, *tmp_panel;
 IplImage *dash_panels[DASH_HEIGHT][DASH_WIDTH];
 
-int mouse_x, mouse_y;
+int mouse_x, mouse_y, botfd;
+double target_x;
 
 struct ball {
 	struct ball *next;
@@ -92,7 +94,11 @@ find_colors (IplImage *img, IplImage *res)
 			} else if (((160 <= h && h <= 180)
 				    || (0 <= h && h <= 10))
 				   && (s > 70)) {
-				row_bgr_dst[x] = 255;
+				if (1) {
+					row_bgr_dst[x] = 255;
+				} else {
+					row_bgr_dst[x] = 0;
+				}
 				row_bgr_dst[x+1] = 0;
 				row_bgr_dst[x+2] = 0;
 			} else {
@@ -170,8 +176,8 @@ track_balls (IplImage *img, IplImage *res)
 	CvMoments moments;
 	CvPoint2D32f mid;
 	float r;
-	double blob_area, contour_area;
-	struct ball *ballp;
+	double blob_area, contour_area, top_area;
+	struct ball *ballp, *top_ball;
 	struct blob *bp1, *bp2;
 
 	mat_gray = cvCreateMat (FRAME_HEIGHT, FRAME_WIDTH, CV_8UC1);
@@ -186,6 +192,8 @@ track_balls (IplImage *img, IplImage *res)
 				CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, cvPoint (0, 0));
 	}
 	cvCopy (img, res, 0);
+
+	top_ball = 0;
 
 	for (cp = contours; cp; cp = cp->h_next) {
 		cvMoments (cp, &moments, 0); 
@@ -205,8 +213,10 @@ track_balls (IplImage *img, IplImage *res)
 		cvMinEnclosingCircle (blob_poly, &mid, &r);
 		blob_area = M_PI * r * r;
 
-		if (fabs (blob_area / contour_area) > 1.7)
-			continue;
+		if (0) {
+			if (fabs (blob_area / contour_area) > 1.7)
+				continue;
+		}
 
 		bp1 = xcalloc (1, sizeof *bp1);
 
@@ -231,9 +241,15 @@ track_balls (IplImage *img, IplImage *res)
 			cvCircle (res, cvPoint (ballp->x, ballp->y),
 				  2, ballp->color, 3, 8, 0);
 		}
+
+		if (blob_area > top_area) {
+			top_area = blob_area;
+			top_ball = ballp;
+		}
 	}
 
-
+	if (top_ball)
+		target_x = top_ball->x - (FRAME_WIDTH / 2);
 
 	for (bp1 = head_blob; bp1; bp1 = bp2) {
 		bp2 = bp1->next;
@@ -244,11 +260,26 @@ track_balls (IplImage *img, IplImage *res)
 	head_blob = NULL;
 }
 
+void
+command_bot (void)
+{
+	if (target_x == 0) {
+		write (botfd, "a", 1);
+	}
+
+	if (-100 < target_x && target_x < 100) {
+		write (botfd, "w", 1);
+	} else if (target_x >= -100) {
+		write (botfd, "a", 1);
+	} else if (target_x <= 100) {
+		write (botfd, "d", 1);
+	}
+}
+
 int
 main (int argc, char **argv)
 {
 	int c, idx, jdx, running;
-	/* IplImage *rawsized; */
 
 	running = 1;
 	head_dot = NULL;
@@ -258,8 +289,6 @@ main (int argc, char **argv)
 		fprintf (stderr, "can't open camera\n");
 		exit (1);
 	}
-
-	cvSetCaptureProperty (capture, CV_CAP_PROP_XI_AEAG, 0);
 		
 	for (idx = 0; idx < DASH_HEIGHT; idx++) {
 		for (jdx = 0; jdx < DASH_WIDTH; jdx++) {
@@ -285,11 +314,7 @@ main (int argc, char **argv)
 
 	cvSetMouseCallback (DASH_WINDOW, on_mouse, NULL);
 
-	/* raw = cvLoadImage ("ref_img.jpg", CV_LOAD_IMAGE_COLOR); */
-	/* rawsized = cvCreateImage (cvSize (FRAME_WIDTH, FRAME_HEIGHT), 8, 3); */
-	/* cvResize (raw, rawsized, CV_INTER_LINEAR); */
-	/* cvFlip (rawsized, frame, 1); */
-	/* running = 0; */
+	botfd = open ("/dev/ttyACM0", O_RDWR);
 
 	while (1) {
 		if (running) {
@@ -333,6 +358,8 @@ main (int argc, char **argv)
 
 		cvShowImage (DASH_WINDOW, screen);
 
+		command_bot ();
+
 		unsigned char *img1, *img2;
  		img1 = &CV_IMAGE_ELEM (hsv, uchar, mouse_y, mouse_x * 3);
 		img2 = &CV_IMAGE_ELEM (dash_panels[0][0], uchar, mouse_y, mouse_x * 3);
@@ -347,6 +374,8 @@ main (int argc, char **argv)
 		if (c == ' ') {
 			running ^= 1;
 		} else if (c == 033) {
+			return (0);
+		} else if (c == 1048603) {
 			return (0);
 		} else if (c > 0) {
 			printf ("%d\n", c);
