@@ -2,10 +2,10 @@
 
 #include <stdio.h>
 
-#define RIGHT_MOTOR 14
-#define LEFT_MOTOR 3
-#define RIGHT_DIR 13
-#define LEFT_DIR 4
+#define RIGHT_MOTOR 0
+#define RIGHT_DIR 1
+#define LEFT_MOTOR 5
+#define LEFT_DIR 7
 #define SPEED 20000
 
 struct motor {
@@ -74,9 +74,11 @@ setup (void)
 {
 	setup_motor (&left_motor, LEFT_MOTOR, LEFT_DIR);
 	setup_motor (&right_motor, RIGHT_MOTOR, RIGHT_DIR);
+	pinMode (1, OUTPUT);
+	digitalWrite (1, LOW);
 
-	setup_encoder (&left_encoder, 8, 9, 10, 11, count_left);
-	setup_encoder (&right_encoder, 23, 24, 25, 26, count_right);
+	/* setup_encoder (&left_encoder, 8, 9, 10, 11, count_left); */
+	/* setup_encoder (&right_encoder, 23, 24, 25, 26, count_right); */
 
 	driving = 0;
 }
