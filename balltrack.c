@@ -6,7 +6,7 @@
 #include <opencv2/highgui/highgui_c.h>
 #include <opencv2/imgproc/imgproc_c.h>
 
-#define DEBUG_VALUES 0
+#define DEBUG_VALUES 1
 
 #define DASH_WINDOW "balltrack"
 #define DASH_HEIGHT 2
@@ -77,6 +77,17 @@ find_colors (IplImage *img, IplImage *res)
 
 	row_hsv = &CV_IMAGE_ELEM (hsv, uchar, 5, 10);
 
+	for (y = 0; y < FRAME_HEIGHT / 3; y++) {
+		row_hsv = &CV_IMAGE_ELEM (hsv, uchar, y, 0);
+		row_bgr_dst = &CV_IMAGE_ELEM (res, uchar, y, 0);
+
+		for (x = 0; x < FRAME_WIDTH * 3; x += 3) {
+			row_bgr_dst[x] = 0;
+			row_bgr_dst[x+1] = 0;
+			row_bgr_dst[x+2] = 0;
+		}
+	}
+
 	for (y = 0; y < FRAME_HEIGHT; y++) {
 		row_hsv = &CV_IMAGE_ELEM (hsv, uchar, y, 0);
 		row_bgr_dst = &CV_IMAGE_ELEM (res, uchar, y, 0);
@@ -86,8 +97,13 @@ find_colors (IplImage *img, IplImage *res)
 			s = row_hsv[x+1];
 			/* v = row_hsv[x+2]; */
 
+			if (y < FRAME_HEIGHT / 2) {
+				h = 0;
+				s = 0;
+			}				
+
 			if ((42 <= h && h <= 90)
-			    && (s > 70)) {
+			    && (s > 15)) {
 				row_bgr_dst[x] = 255;
 				row_bgr_dst[x+1] = 0;
 				row_bgr_dst[x+2] = 0;
@@ -213,7 +229,7 @@ track_balls (IplImage *img, IplImage *res)
 		cvMinEnclosingCircle (blob_poly, &mid, &r);
 		blob_area = M_PI * r * r;
 
-		if (0) {
+		if (1) {
 			if (fabs (blob_area / contour_area) > 1.7)
 				continue;
 		}
@@ -285,7 +301,7 @@ main (int argc, char **argv)
 	head_dot = NULL;
 	head_blob = NULL;
 
-	if ((capture = cvCreateCameraCapture (0)) == NULL) {
+	if ((capture = cvCreateCameraCapture (1)) == NULL) {
 		fprintf (stderr, "can't open camera\n");
 		exit (1);
 	}
