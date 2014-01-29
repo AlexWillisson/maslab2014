@@ -1,0 +1,7 @@
+#! /bin/sh
+
+./client.py
+./balltrack&
+sleep 60
+killall balltrack
+dd if=stop of=/dev/ttyACM0

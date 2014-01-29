@@ -301,7 +301,7 @@ main (int argc, char **argv)
 	head_dot = NULL;
 	head_blob = NULL;
 
-	if ((capture = cvCreateCameraCapture (1)) == NULL) {
+	if ((capture = cvCreateCameraCapture (2)) == NULL) {
 		fprintf (stderr, "can't open camera\n");
 		exit (1);
 	}
