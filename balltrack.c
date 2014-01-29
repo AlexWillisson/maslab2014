@@ -331,6 +331,7 @@ main (int argc, char **argv)
 	cvSetMouseCallback (DASH_WINDOW, on_mouse, NULL);
 
 	botfd = open ("/dev/ttyACM0", O_RDWR);
+	sensorfd = open ("/dev/ttyACM3", O_RDWR);
 
 	while (1) {
 		if (running) {

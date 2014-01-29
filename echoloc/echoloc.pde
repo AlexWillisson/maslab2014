@@ -113,5 +113,5 @@ loop (void) {
 	Serial.print ("us3: ");
 	Serial.println (sample_ultrasonic (&ultrasonic3));
 
-	delay(500);
+	delay(50);
 }
