@@ -1,44 +1,111 @@
-/*
-HC-SR04 Ping distance sensor]
-VCC to arduino 5v GND to arduino GND
-Echo to Arduino pin 7 
-Trig to Arduino pin 8
+// -*- c -*-
 
-More info at: http://goo.gl/kJ8Gl
-Original code improvements to the Ping sketch sourced from Trollmaker.com
-Some code and wiring inspired by http://en.wikiversity.org/wiki/User:Dstaub/robotcar
+#include <stdarg.h>
 
-Modded back again by Aisha :3
+#define TRIG0 3
+#define ECHO0 2
 
-*/
+#define TRIG1 8
+#define ECHO1 7
 
-#define trigPin 8
-#define echoPin 7
+#define TRIG2 10
+#define ECHO2 9
 
-void setup() {
-  Serial.begin (9600);
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-  }
+#define TRIG3 12
+#define ECHO3 13
 
-void loop() {
-  long duration, distance;
-  digitalWrite(trigPin, LOW);  // Added this line
-  delayMicroseconds(2); // Added this line
-  digitalWrite(trigPin, HIGH);
-//  delayMicroseconds(1000); - Removed this line
-  delayMicroseconds(10); // Added this line
-  digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin, HIGH);
-  distance = (duration/2) / 29.1;
+struct dev {
+	int numpins, *pins, *modes;
+};
 
-  if (distance >= 200 || distance <= 0){
-    Serial.println("Out of range");
-  }
-  else {
-    Serial.print("Distance: ");
-    Serial.print(distance);
-    Serial.println(" cm");
-  }
-  delay(500);
+struct dev ultrasonic0, ultrasonic1, ultrasonic2, ultrasonic3;
+
+struct dev *
+make_dev (struct dev *dp, int numpins, ...)
+{
+	int idx;
+	va_list arg;
+
+	if ((dp->pins = (int *) calloc (numpins, sizeof *dp->pins)) == NULL) {
+		Serial.println ("memory error");
+		return (NULL);
+	}
+
+	if ((dp->modes = (int *) calloc (numpins, sizeof *dp->modes)) == NULL) {
+		Serial.println ("memory error");
+		return (NULL);
+	}
+
+	va_start (arg, numpins);
+
+	dp->numpins = numpins;
+
+	for (idx = 0; idx < numpins; idx++) {
+		dp->pins[idx] = va_arg (arg, int);
+		dp->modes[idx] = va_arg (arg, int);
+	}
+
+	va_end (arg);
+
+	return (dp);
+}
+
+void
+map_pins (struct dev *dp) {
+	int idx;
+
+	for (idx = 0; idx < dp->numpins; idx++) {
+		pinMode (dp->pins[idx], dp->modes[idx]);
+	}
+}
+
+double
+sample_ultrasonic (struct dev *dp)
+{
+	long duration, distance;
+
+	digitalWrite (dp->pins[0], LOW);
+	delayMicroseconds (2);
+	digitalWrite (dp->pins[0], HIGH);
+	delayMicroseconds (10);
+	digitalWrite (dp->pins[0], LOW);
+
+	duration = pulseIn (dp->pins[1], HIGH);
+	distance = (duration / 2) / 29.1;
+
+	return (duration / 2) / 29.1;
+}
+
+void
+setup (void) {
+	Serial.begin (9600);
+
+	make_dev (&ultrasonic0, 2, TRIG0, OUTPUT, ECHO0, INPUT);
+	map_pins (&ultrasonic0);
+
+	make_dev (&ultrasonic1, 2, TRIG1, OUTPUT, ECHO1, INPUT);
+	map_pins (&ultrasonic1);
+
+	make_dev (&ultrasonic2, 2, TRIG2, OUTPUT, ECHO2, INPUT);
+	map_pins (&ultrasonic2);
+
+	make_dev (&ultrasonic3, 2, TRIG3, OUTPUT, ECHO3, INPUT);
+	map_pins (&ultrasonic3);
+}
+
+void
+loop (void) {
+	Serial.print ("us0: ");
+	Serial.println (sample_ultrasonic (&ultrasonic0));
+
+	Serial.print ("us1: ");
+	Serial.println (sample_ultrasonic (&ultrasonic1));
+
+	Serial.print ("us2: ");
+	Serial.println (sample_ultrasonic (&ultrasonic2));
+
+	Serial.print ("us3: ");
+	Serial.println (sample_ultrasonic (&ultrasonic3));
+
+	delay(50);
 }

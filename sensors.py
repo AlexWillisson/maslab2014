@@ -1,22 +1,28 @@
 #! /usr/bin/env python
 
-import serial, time
+import serial, time, shutil
 
 us = [0, 0, 0, 0]
 
-s = serial.Serial ("/dev/ttyACM1", 9600, timeout=1)
-s.close ()
-s.open ()
+s = serial.Serial ("/dev/ttyACM0", 9600, timeout=1)
+buf = ""
 while True:
-    r = s.read (size=64)
+    try:
+        l = s.read ()
 
-    print r
-    
-    a = r.split ("\n")
+        if "\n" not in l:
+            buf += l
+            continue
+        else:
+            foo = l.split ("\n")
+            line = buf + foo[0]
+            buf = foo[1]
 
-    for i in range (1, len (a) - 2):
-        b = a[2:3]
-        c = a[5:]
+        if len (line) < 6:
+            continue
+
+        b = line[2:3]
+        c = line[5:]
 
         if b == "0":
             us[0] = float (c)
@@ -27,9 +33,11 @@ while True:
         elif b == "3":
             us[3] = float (c)
 
-    f = open ("ultrasonics", "w")
-    f.write (",".join([str (x) for x in us]))
-    f.close ()
+        f = open ("ultrasonics.tmp", "w")
+        f.write (",".join([str (x) for x in us]))
+        f.close ()
 
-    time.sleep (.04)
+        shutil.move ("ultrasonics.tmp", "ultrasonics")
+    except:
+        pass
 
