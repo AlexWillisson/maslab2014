@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <fcntl.h>
+#include <sys/time.h>
 #include <opencv2/core/core_c.h>
 #include <opencv2/highgui/highgui_c.h>
 #include <opencv2/imgproc/imgproc_c.h>
@@ -28,6 +29,8 @@ IplImage *dash_panels[DASH_HEIGHT][DASH_WIDTH];
 int mouse_x, mouse_y, botfd;
 double target_x;
 
+struct ball *tar_ball;
+
 struct ball {
 	struct ball *next;
 	double x, y, r;
@@ -44,6 +47,14 @@ struct blob {
 };
 
 struct blob *head_blob;
+
+double
+get_secs (void)
+{
+        struct timeval tv;
+	gettimeofday (&tv, NULL);
+        return (tv.tv_sec + tv.tv_usec/1e6);
+}
 
 void *
 xcalloc (int a, int b)
@@ -88,6 +99,17 @@ find_colors (IplImage *img, IplImage *res)
 		}
 	}
 
+	/* for (y = 7 * (FRAME_HEIGHT / 8); y < FRAME_HEIGHT; y++) { */
+	/* 	row_hsv = &CV_IMAGE_ELEM (hsv, uchar, y, 0); */
+	/* 	row_bgr_dst = &CV_IMAGE_ELEM (res, uchar, y, 0); */
+
+
+	/* 		row_bgr_dst[x] = 0; */
+	/* 		row_bgr_dst[x+1] = 0; */
+	/* 		row_bgr_dst[x+2] = 0; */
+	/* 	} */
+	/* } */
+
 	for (y = 0; y < FRAME_HEIGHT; y++) {
 		row_hsv = &CV_IMAGE_ELEM (hsv, uchar, y, 0);
 		row_bgr_dst = &CV_IMAGE_ELEM (res, uchar, y, 0);
@@ -103,20 +125,16 @@ find_colors (IplImage *img, IplImage *res)
 			}				
 
 			if ((42 <= h && h <= 90)
-			    && (s > 15)) {
-				row_bgr_dst[x] = 255;
-				row_bgr_dst[x+1] = 0;
+			    && (s > 70)) {
+				row_bgr_dst[x] = 0;
+				row_bgr_dst[x+1] = 255;
 				row_bgr_dst[x+2] = 0;
 			} else if (((160 <= h && h <= 180)
 				    || (0 <= h && h <= 10))
 				   && (s > 70)) {
-				if (1) {
-					row_bgr_dst[x] = 255;
-				} else {
-					row_bgr_dst[x] = 0;
-				}
+				row_bgr_dst[x] = 0;
 				row_bgr_dst[x+1] = 0;
-				row_bgr_dst[x+2] = 0;
+				row_bgr_dst[x+2] = 255;
 			} else {
 				row_bgr_dst[x] = 0;
 				row_bgr_dst[x+1] = 0;
@@ -136,10 +154,10 @@ clean_noise (IplImage *img, IplImage *res)
 
 	mat_gray_shrunk = cvCreateMat (FRAME_HEIGHT, FRAME_WIDTH, CV_8UC1);
 
-	cvErode (mat_gray, mat_gray_shrunk, NULL, 5);
+	cvErode (mat_gray, mat_gray_shrunk, NULL, 1);
 	cvDilate (mat_gray_shrunk, mat_gray, NULL, 5);
 
-	cvCvtColor (mat_gray_shrunk, res, CV_GRAY2BGR);
+	cvCvtColor (mat_gray, res, CV_GRAY2BGR);
 }
 
 struct ball *
@@ -182,6 +200,8 @@ track_dot (double center_x, double center_y)
 
 	return (dp2);
 }
+
+double last_time;
 
 void
 track_balls (IplImage *img, IplImage *res)
@@ -264,8 +284,21 @@ track_balls (IplImage *img, IplImage *res)
 		}
 	}
 
-	if (top_ball)
+	double now, dt;
+
+	now = get_secs ();
+	dt = now - last_time;
+
+	if (top_ball != tar_ball && dt > 1) {
+		tar_ball = top_ball;
 		target_x = top_ball->x - (FRAME_WIDTH / 2);
+	} else if (top_ball) {		
+		target_x = top_ball->x - (FRAME_WIDTH / 2);
+	} else {
+		target_x = 0;
+	}
+
+	last_time = now;
 
 	for (bp1 = head_blob; bp1; bp1 = bp2) {
 		bp2 = bp1->next;
@@ -286,11 +319,17 @@ command_bot (void)
 	if (-100 < target_x && target_x < 100) {
 		write (botfd, "w", 1);
 	} else if (target_x >= -100) {
-		write (botfd, "a", 1);
-	} else if (target_x <= 100) {
 		write (botfd, "d", 1);
+	} else if (target_x <= 100) {
+		write (botfd, "a", 1);
 	}
 }
+
+/* void */
+/* read_ultrasonics (void) */
+/* { */
+	
+/* } */
 
 int
 main (int argc, char **argv)
@@ -331,12 +370,18 @@ main (int argc, char **argv)
 	cvSetMouseCallback (DASH_WINDOW, on_mouse, NULL);
 
 	botfd = open ("/dev/ttyACM0", O_RDWR);
+	/* sensorfd = open ("/dev/ttyACM1", O_RDWR); */
+
+	last_time = get_secs ();
 
 	while (1) {
+		/* read_ultrasonics (); */
+
 		if (running) {
 			raw = cvQueryFrame (capture);
 
-			cvFlip (raw, frame, 1);
+			/* cvFlip (raw, frame, 1); */
+			cvCopy (raw, frame, 0);
 		}
 
 		cvCopy (frame, dash_panels[0][0], 0);
