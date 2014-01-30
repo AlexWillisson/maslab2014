@@ -7,7 +7,7 @@
 #include <opencv2/highgui/highgui_c.h>
 #include <opencv2/imgproc/imgproc_c.h>
 
-#define DEBUG_VALUES 1
+#define DEBUG_VALUES 0
 
 #define DASH_WINDOW "balltrack"
 #define DASH_HEIGHT 2
@@ -28,6 +28,7 @@ IplImage *dash_panels[DASH_HEIGHT][DASH_WIDTH];
 
 int mouse_x, mouse_y, botfd;
 double target_x;
+float ultrasonics[4];
 
 struct ball *tar_ball;
 
@@ -87,29 +88,6 @@ find_colors (IplImage *img, IplImage *res)
 	cvCvtColor (img, hsv, CV_BGR2HSV);
 
 	row_hsv = &CV_IMAGE_ELEM (hsv, uchar, 5, 10);
-
-	for (y = 0; y < FRAME_HEIGHT / 3; y++) {
-		row_hsv = &CV_IMAGE_ELEM (hsv, uchar, y, 0);
-		row_bgr_dst = &CV_IMAGE_ELEM (res, uchar, y, 0);
-
-		for (x = 0; x < FRAME_WIDTH * 3; x += 3) {
-			row_bgr_dst[x] = 0;
-			row_bgr_dst[x+1] = 0;
-			row_bgr_dst[x+2] = 0;
-		}
-	}
-
-	/* for (y = 7 * (FRAME_HEIGHT / 8); y < FRAME_HEIGHT; y++) { */
-	/* 	row_hsv = &CV_IMAGE_ELEM (hsv, uchar, y, 0); */
-	/* 	row_bgr_dst = &CV_IMAGE_ELEM (res, uchar, y, 0); */
-
-
-	/* 		row_bgr_dst[x] = 0; */
-	/* 		row_bgr_dst[x+1] = 0; */
-	/* 		row_bgr_dst[x+2] = 0; */
-	/* 	} */
-	/* } */
-
 	for (y = 0; y < FRAME_HEIGHT; y++) {
 		row_hsv = &CV_IMAGE_ELEM (hsv, uchar, y, 0);
 		row_bgr_dst = &CV_IMAGE_ELEM (res, uchar, y, 0);
@@ -119,7 +97,7 @@ find_colors (IplImage *img, IplImage *res)
 			s = row_hsv[x+1];
 			/* v = row_hsv[x+2]; */
 
-			if (y < FRAME_HEIGHT / 2) {
+			if (y < FRAME_HEIGHT / 2 || y > 4 * FRAME_HEIGHT / 5) {
 				h = 0;
 				s = 0;
 			}				
@@ -325,11 +303,35 @@ command_bot (void)
 	}
 }
 
-/* void */
-/* read_ultrasonics (void) */
-/* { */
-	
-/* } */
+void
+read_ultrasonics (void)
+{
+	FILE *fp;
+	char line[1000], *p0, *p1;
+	int idx;
+
+	fp = fopen ("ultrasonics", "r");
+
+	fgets (line, sizeof line, fp);
+
+	p0 = line;
+	p1 = p0;
+
+	for (idx = 0; idx < 4; idx++) {
+		p1++;
+
+		while (*p1 && *p1 != ',') {
+			p1++;
+		}
+
+		*p1 = 0;
+
+		sscanf (p0, "%f", &ultrasonics[idx]);
+
+		p1++;
+		p0 = p1;
+	}
+}
 
 int
 main (int argc, char **argv)
@@ -340,7 +342,7 @@ main (int argc, char **argv)
 	head_dot = NULL;
 	head_blob = NULL;
 
-	if ((capture = cvCreateCameraCapture (2)) == NULL) {
+	if ((capture = cvCreateCameraCapture (1)) == NULL) {
 		fprintf (stderr, "can't open camera\n");
 		exit (1);
 	}
@@ -370,12 +372,11 @@ main (int argc, char **argv)
 	cvSetMouseCallback (DASH_WINDOW, on_mouse, NULL);
 
 	botfd = open ("/dev/ttyACM0", O_RDWR);
-	/* sensorfd = open ("/dev/ttyACM1", O_RDWR); */
 
 	last_time = get_secs ();
 
 	while (1) {
-		/* read_ultrasonics (); */
+		read_ultrasonics ();
 
 		if (running) {
 			raw = cvQueryFrame (capture);
@@ -438,6 +439,10 @@ main (int argc, char **argv)
 			return (0);
 		} else if (c == 1048603) {
 			return (0);
+		} else if (c == 'z') {
+			printf ("%f, %f, %f, %f\n", ultrasonics[0],
+				ultrasonics[1], ultrasonics[2],
+				ultrasonics[3]);
 		} else if (c > 0) {
 			printf ("%d\n", c);
 		}
