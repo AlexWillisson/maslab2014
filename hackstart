@@ -4,4 +4,5 @@ sleep 3;
 ./balltrack&
 sleep 60
 killall balltrack
+killall mplayer
 dd if=stop of=/dev/ttyACM0
