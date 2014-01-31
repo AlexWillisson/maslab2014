@@ -45,7 +45,9 @@ frame.append (base64.b64encode (f.read ()))
 
 idx = 0
 
-s.send ("{\"token\": \"a12L7plGB8\", \"a\": [\"<marquee>nyanness</marquee>\", \"yay\"]}done\n")
+f = open ("parsed.html")
+
+s.send ("{\"token\": \"a12L7plGB8\", \"a\": [" + f.read () + "\", \"*meow*\"]}done\n")
 
 while True:
     time.sleep (.1)
