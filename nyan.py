@@ -47,7 +47,11 @@ idx = 0
 
 f = open ("parsed.html")
 
-s.send ("{\"token\": \"a12L7plGB8\", \"a\": [" + f.read () + "\", \"*meow*\"]}done\n")
+html = "{\"token\": \"a12L7plGB8\", \"a\": [\"" + f.read ()[:-1] + "\", \"*meow*\"]}done\n"
+
+s.send (html)
+
+#print html
 
 while True:
     time.sleep (.1)
