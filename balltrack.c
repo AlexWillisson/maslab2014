@@ -3,6 +3,7 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <sys/time.h>
+#include <time.h>
 #include <opencv2/core/core_c.h>
 #include <opencv2/highgui/highgui_c.h>
 #include <opencv2/imgproc/imgproc_c.h>
@@ -26,9 +27,22 @@ CvCapture *capture;
 IplImage *frame, *raw, *screen, *hsv, *tmp_panel;
 IplImage *dash_panels[DASH_HEIGHT][DASH_WIDTH];
 
-int mouse_x, mouse_y, botfd;
-double target_x;
+int mouse_x, mouse_y, botfd, state;
+double target_x, state_start;
 float ultrasonics[4];
+double working_since, rand_rotation, turn_start;
+
+char *last_cmd;
+
+enum {
+	FINDBALL,
+	BOUNCE_FRONT_LEFT,
+	BOUNCE_FRONT_RIGHT,
+	BOUNCE_BACK_LEFT,
+	BOUNCE_BACK_RIGHT,
+	NOPENOPENOPE,
+	STUCK,
+};
 
 struct ball *tar_ball;
 
@@ -290,17 +304,126 @@ track_balls (IplImage *img, IplImage *res)
 void
 command_bot (void)
 {
-	if (target_x == 0) {
-		write (botfd, "a", 1);
+	double now;
+
+	now = get_secs ();
+
+	if (ultrasonics[0] < 8) {
+		state = BOUNCE_FRONT_RIGHT;
+		printf ("%4.2f state is now BOUNCE_FRONT_RIGHT\n", now);
+		state_start = get_secs ();
+	} else if (ultrasonics[1] < 8) {
+		state = BOUNCE_BACK_RIGHT;
+		printf ("%4.2f state is now BOUNCE_BACK_RIGHT\n", now);
+		state_start = get_secs ();
+	} else if (ultrasonics[2] < 8) {
+		state = BOUNCE_FRONT_LEFT;
+		printf ("%4.2f state is now BOUNCE_FRONT_LEFT\n", now);
+		state_start = get_secs ();
+	} else if (ultrasonics[3] < 8) {
+		state = BOUNCE_BACK_LEFT;
+		printf ("%4.2f state is now BOUNCE_BACK_LEFT\n", now);
+		state_start = get_secs ();
 	}
 
-	if (-100 < target_x && target_x < 100) {
-		write (botfd, "w", 1);
-	} else if (target_x >= -100) {
-		write (botfd, "d", 1);
-	} else if (target_x <= 100) {
-		write (botfd, "a", 1);
+	if (now - working_since > 10) {
+		state = STUCK;
+		printf ("%4.2f state is now STUCK\n", now);
+		working_since = now;
+		state_start = now;
+		rand_rotation = ((double) rand () / RAND_MAX) * 2 + 1;
 	}
+
+	/* target_x = 0; */
+
+	switch (state) {
+	case FINDBALL:
+		if (now - state_start > 1) {
+			working_since = now;
+		}
+
+		if (target_x == 0) {
+			write (botfd, "a", 1);
+		}
+
+		if (-100 < target_x && target_x < 100) {
+			write (botfd, "w", 1);
+		} else if (target_x >= -100) {
+			write (botfd, "d", 1);
+		} else if (target_x <= 100) {
+			write (botfd, "a", 1);
+		}
+		break;
+	case BOUNCE_FRONT_LEFT:
+		if (ultrasonics[2] < 10 || ultrasonics[0] < 10) {
+			write (botfd, "s", 1);
+			turn_start = now;
+		} else {
+			if (now - turn_start < .4) {
+				write (botfd, "d", 1);
+			} else {
+				state = FINDBALL;
+				printf ("%4.2f state is now FINDBALL\n", now);
+				state_start = get_secs ();
+			}
+		}
+		break;
+	case BOUNCE_FRONT_RIGHT:
+		if (ultrasonics[2] < 10 || ultrasonics[0] < 10) {
+			write (botfd, "s", 1);
+			turn_start = now;
+		} else {
+			if (now - turn_start < .4) {
+				write (botfd, "a", 1);
+			} else {
+				state = FINDBALL;
+				printf ("%4.2f state is now FINDBALL\n", now);
+				state_start = get_secs ();
+			}
+		}
+		break;
+	case BOUNCE_BACK_LEFT:
+		if (ultrasonics[1] < 10 || ultrasonics[3] < 10) {
+			write (botfd, "w", 1);
+			turn_start = now;
+		} else {
+			if (now - turn_start < .4) {
+				write (botfd, "a", 1);
+			} else {
+				state = FINDBALL;
+				printf ("%4.2f state is now FINDBALL\n", now);
+				state_start = get_secs ();
+			}
+		}
+		break;
+	case BOUNCE_BACK_RIGHT:
+		if (ultrasonics[1] < 10 || ultrasonics[3] < 10) {
+			write (botfd, "w", 1);
+			turn_start = now;
+		} else {
+			if (now - turn_start < .4) {
+				write (botfd, "d", 1);
+			} else {
+				state = FINDBALL;
+				printf ("%4.2f state is now FINDBALL\n", now);
+				state_start = get_secs ();
+			}
+		}
+		break;
+	case STUCK:
+		if (now < rand_rotation + state_start) {
+			write (botfd, "a", 1);
+		} else {
+			state = FINDBALL;
+			printf ("%4.2f state is now FINDBALL\n", now);
+			state_start = get_secs ();
+		}
+		break;
+	case NOPENOPENOPE:
+		break;
+	}
+
+	last_time = now;
 }
 
 void
@@ -337,10 +460,18 @@ int
 main (int argc, char **argv)
 {
 	int c, idx, jdx, running;
+	double now;
+
+	srand (time (NULL));
 
 	running = 1;
 	head_dot = NULL;
 	head_blob = NULL;
+	state = FINDBALL;
+	printf ("%4.2f state is now FINDBALL\n", get_secs ());
+	now = get_secs ();
+	working_since = now;
+	state_start = now;	
 
 	if ((capture = cvCreateCameraCapture (1)) == NULL) {
 		fprintf (stderr, "can't open camera\n");
@@ -371,7 +502,7 @@ main (int argc, char **argv)
 
 	cvSetMouseCallback (DASH_WINDOW, on_mouse, NULL);
 
-	botfd = open ("/dev/ttyACM0", O_RDWR);
+	botfd = open ("/dev/ttyACM1", O_RDWR);
 
 	last_time = get_secs ();
 
